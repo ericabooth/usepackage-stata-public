@@ -1426,25 +1426,33 @@ program define _up_scan, rclass
     local miss ""
     file read `fh' line
     while r(eof) == 0 {
-        local t = trim(`"`line'"')
-        * skip comments and continuations
-        if substr("`t'", 1, 1) != "*" & substr("`t'", 1, 2) != "//" & "`t'" != "" {
+        *-- Lines routinely contain double quotes (paths, option strings).  Use
+        *-- -macval- with compound quotes and pull tokens with -gettoken-, which
+        *-- is quote-safe: evaluating substr("`t'", ...) on a line holding a
+        *-- quoted path breaks the expression and the remnant gets run as a
+        *-- command (that is how a path once surfaced as "Users not found").
+        local t `"`macval(line)'"'
+        if substr(`"`t'"', 1, 1) != "*" & substr(`"`t'"', 1, 2) != "//" & trim(`"`t'"') != "" {
             * strip a leading "quietly"/"capture"/"noisily" stack
             local guard 0
             while `guard' < 4 {
-                local w1 : word 1 of `t'
-                local w1l = lower("`w1'")
+                gettoken w1 rest : t
+                local w1l = lower(`"`w1'"')
                 if inlist("`w1l'", "qui", "quietly", "cap", "capture", "noi", "noisily") {
-                    local t = trim(substr("`t'", length("`w1'") + 1, .))
+                    local t `"`rest'"'
                     local ++guard
                 }
                 else {
                     local guard 99
                 }
             }
-            local cmd : word 1 of `t'
+            gettoken cmd rest : t
+            *-- "coefplot, title(...)" leaves the comma glued to the name
+            if substr(`"`cmd'"', -1, 1) == "," {
+                local cmd = substr(`"`cmd'"', 1, length(`"`cmd'"') - 1)
+            }
             * a command token is bare letters/underscore/digits
-            if regexm("`cmd'", "^[a-zA-Z_][a-zA-Z_0-9]*$") {
+            if regexm(`"`cmd'"', "^[a-zA-Z_][a-zA-Z_0-9]*$") {
                 if !strpos(" `seen' ", " `cmd' ") {
                     local seen "`seen' `cmd'"
                     capture qui which `cmd'
@@ -1473,6 +1481,9 @@ program define _up_scan, rclass
         di as text "      install them with: {bf:usepackage" "`miss'}"
     }
     return local missing "`miss'"
+    *-- probing built-ins above leaves a nonzero _rc behind; clear it so a
+    *-- caller's "if _rc" does not fire on a scan that worked
+    capture noisily di as text ""
 end
 
 

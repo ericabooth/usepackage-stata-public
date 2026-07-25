@@ -140,6 +140,31 @@ repo name, then names starting with the package name, then names containing it.
 A repo containing `<pkg>.pkg` has *declared* it ships that package, so it
 installs. A repo whose name merely looks right installs only after you confirm.
 
+### Listing what an account ships
+
+Leave the package name off (or give `*`) and `github()` becomes a catalogue:
+
+```stata
+. usepackage, github("texas-2036")
+      14 repositor(ies); checking each for a stata.toc...
+      --------------------------------------------------------
+      package          repository                      branch
+      --------------------------------------------------------
+      driveuse         driveuse-stata-public            main
+      editanything     EditAnything-stata-public        main
+      sparkta2         sparkta2-stata-public            main
+      --------------------------------------------------------
+      5 package(s) in 5 repositor(ies); 9 have no stata.toc
+```
+
+Package names come from each repo's `stata.toc` — the same file `net install`
+reads — so it lists what's genuinely installable, not a guess from file names.
+Point it at a single repo to see just that one:
+
+```stata
+usepackage *, github("texas-2036/sparkta2-stata-public")
+```
+
 ### Searching your own accounts automatically
 
 Name your accounts once, in `profile.do`:

@@ -36,6 +36,10 @@ help for {hi:usepackage}{right:v 2.0.0}
 [{it:options}]
 
 {p 8 15 2}
+{cmd:usepackage} [{cmd:*}] {cmd:,} {cmdab:git:hub(}{it:owner}{cmd:)}
+{c -} list the packages an account or repository ships
+
+{p 8 15 2}
 {cmd:usepackage} {cmd:,} {cmd:data(}{it:owner/repo}{cmd:)}
 [{cmd:files(}{it:filelist}{cmd:)} {it:options}]
 
@@ -221,6 +225,34 @@ The distinction that decides whether you are asked: a repository containing a
 proof rather than resemblance, so it installs. A repository whose name merely
 looks right but carries no matching {cmd:.pkg} is offered for confirmation.
 
+{title:Listing what an account (or a repository) ships}
+
+{p 4 4 2}
+Leave the package name off, or give {cmd:*}, and {cmd:github()} becomes a
+catalogue rather than an install:
+
+{p 8 8 2}{cmd:. usepackage, github("texas-2036")}{p_end}
+{p 8 8 2}{cmd:. usepackage *, github("texas-2036")}     // the same thing{p_end}
+
+{p 8 8 2}{cmd:      14 repositor(ies); checking each for a stata.toc...}{p_end}
+{p 8 8 2}{cmd:      --------------------------------------------------------}{p_end}
+{p 8 8 2}{cmd:      package          repository                      branch}{p_end}
+{p 8 8 2}{cmd:      --------------------------------------------------------}{p_end}
+{p 8 8 2}{cmd:      driveuse         driveuse-stata-public            main}{p_end}
+{p 8 8 2}{cmd:      editanything     EditAnything-stata-public        main}{p_end}
+{p 8 8 2}{cmd:      sparkta2         sparkta2-stata-public            main}{p_end}
+{p 8 8 2}{cmd:      --------------------------------------------------------}{p_end}
+{p 8 8 2}{cmd:      5 package(s) in 5 repositor(ies); 9 have no stata.toc}{p_end}
+
+{p 4 4 2}
+The package names come from each repository's {cmd:stata.toc}, which is what
+{cmd:net install} itself reads, so the list is what is genuinely installable
+rather than a guess from file names. Repositories with no {cmd:stata.toc} are
+counted but not listed. Point it at one repository instead to see just that:
+
+{p 8 8 2}{cmd:. usepackage *, github("texas-2036/sparkta2-stata-public")}{p_end}
+
+
 {title:Searching your own accounts automatically}
 
 {p 4 4 2}
@@ -390,6 +422,10 @@ package, {cmd:ssc install} is shorter.
 {pstd}{bf:Search a whole GitHub account instead of naming the repository}{p_end}
 {phang2}{cmd:. usepackage editanything, github("texas-2036")}{p_end}
 {phang2}{it:lists the account's repos, narrows by name, installs the one that ships it}{p_end}
+
+{pstd}{bf:What Stata packages does an account ship?}{p_end}
+{phang2}{cmd:. usepackage, github("texas-2036")}{p_end}
+{phang2}{cmd:. usepackage *, github("ericabooth")}{p_end}
 
 {pstd}{bf:A pasted repository URL, in any of its usual shapes}{p_end}
 {phang2}{cmd:. usepackage editanything, github("https://github.com/texas-2036/EditAnything-stata-public")}{p_end}
