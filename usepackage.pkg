@@ -18,11 +18,18 @@ d does not place on the adopath) are fetched by default and reported; noancillar
 d skips them.
 d
 d github() installs a package straight from a GitHub repository, probing branch
-d (main, then master) and the usual layouts for stata.toc.  data() fetches data
+d (main, then master) and the usual layouts for stata.toc; give it a bare owner
+d and it searches that account's repositories by name, or set the global
+d usepackage_github once and any unresolved name is looked for there.  It uses
+d only raw.githubusercontent.com for installs, so it is not rate-limited the way
+d the GitHub code-search API is.  data() fetches data
 d files out of a GitHub repository, guessing the live branch and transparently
 d resolving Git LFS pointers, which the raw endpoint otherwise serves as a
 d 130-byte text stub that Stata cannot read.  scan() reads a do-file and reports
 d which of its commands do not resolve on this machine.
+d
+d usepackage does not check versions; pair it with require (Correia and Seay,
+d Stata Journal 24(4)) when you need minimum or exact versions pinned.
 d
 d Requires: Stata 16.0 or newer
 d

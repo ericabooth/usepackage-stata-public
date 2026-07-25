@@ -31,10 +31,17 @@ program define usepackage, rclass
         INTO(string)                         ///
         USEit                                ///
         SCAN(string)                         ///
+        GHOwner(string)                      ///
         ]
 
     *-- mutually sensible defaults -------------------------------------------
     if "`into'" == "" local into "."
+
+    *-- Owners to fall back on when a name is on neither SSC nor the net search
+    *-- catalogue.  Set once per session (or in profile.do) with e.g.
+    *--     global usepackage_github "ericabooth texas-2036"
+    *-- so your own repositories are searched without naming them every time.
+    if `"`ghowner'"' == "" local ghowner `"$usepackage_github"'
 
     *-- route: scan a do-file and report unresolved commands ------------------
     if `"`scan'"' != "" {
@@ -128,7 +135,9 @@ program define usepackage, rclass
         }
 
         *-- try SSC first, then the net search catalogue
-        _up_try `p', `update' `noancillary' `dryrun' `nearest' `noconfirm'
+        local ghnext ""
+        if `"`ghowner'"' != "" local ghnext "ghnext"
+        _up_try `p', `update' `noancillary' `dryrun' `nearest' `noconfirm' `ghnext'
         if r(ok) {
             local ++nok
         }
@@ -137,8 +146,22 @@ program define usepackage, rclass
             local deferlist "`deferlist' `p'"
         }
         else {
-            local ++nfail
-            local faillist "`faillist' `p'"
+            *-- last resort: search any configured GitHub owners
+            local rescued 0
+            foreach o of local ghowner {
+                if `rescued' == 0 {
+                    _up_github `p', repo("`o'") ///
+                        `update' `noancillary' `dryrun'
+                    if r(ok) local rescued 1
+                }
+            }
+            if `rescued' {
+                local ++nok
+            }
+            else {
+                local ++nfail
+                local faillist "`faillist' `p'"
+            }
         }
     }
 
@@ -338,7 +361,8 @@ end
 *  _up_try : SSC, then the net search catalogue (with confirmation)
 *==========================================================================
 program define _up_try, rclass
-    syntax anything(name=pkg) [, Update NOANCillary DRYrun NEARest NOCONFirm ]
+    syntax anything(name=pkg) [, Update NOANCillary DRYrun NEARest NOCONFirm ///
+        GHNEXT ]
 
     return scalar ok = 0
     return scalar skipped = 0
@@ -379,7 +403,11 @@ program define _up_try, rclass
         if "`nearest'" == "" {
             di as text  "      {bf:nearest} would also consider similarly named packages"
         }
-        di as text  `"      if it lives on GitHub: {bf:usepackage `pkg', github(owner/repo)}"'
+        *-- only suggest GitHub if we are not about to go looking there anyway
+        if "`ghnext'" == "" {
+            di as text  `"      if it lives on GitHub: {bf:usepackage `pkg', github(owner/repo)}"'
+            di as text  `"      or search a whole account: {bf:usepackage `pkg', github(owner)}"'
+        }
         return scalar ok = 0
         exit 0
     }
@@ -617,9 +645,21 @@ program define _up_github, rclass
     syntax anything(name=pkg) [, repo(string) branch(string) ///
         Update NOANCillary DRYrun ]
 
-    * accept owner/repo, owner/repo#branch, owner/repo:subdir
+    * Accept owner/repo, owner/repo#branch, owner/repo:subdir, a pasted URL, or
+    * a bare owner.  STRIP THE URL FIRST: "https://github.com/..." contains a
+    * colon of its own, so splitting on ":" before removing the scheme leaves
+    * r == "https" (and that is exactly what it used to do).
     local r `"`repo'"'
     local sub ""
+
+    local r = subinstr(`"`r'"', "https://github.com/", "", .)
+    local r = subinstr(`"`r'"', "http://github.com/", "", .)
+    local r = subinstr(`"`r'"', "https://raw.githubusercontent.com/", "", .)
+    local r = subinstr(`"`r'"', "http://raw.githubusercontent.com/", "", .)
+    local r = subinstr(`"`r'"', "https://www.github.com/", "", .)
+    local r = subinstr(`"`r'"', "github.com/", "", .)
+
+    * now the only "#" or ":" left are ours
     if strpos(`"`r'"', "#") {
         local branch = substr(`"`r'"', strpos(`"`r'"', "#") + 1, .)
         local r      = substr(`"`r'"', 1, strpos(`"`r'"', "#") - 1)
@@ -630,16 +670,54 @@ program define _up_github, rclass
         if substr("`sub'", -1, 1) != "/" local sub "`sub'/"
     }
 
-    * strip a pasted github.com URL down to owner/repo
-    local r = subinstr(`"`r'"', "https://github.com/", "", .)
-    local r = subinstr(`"`r'"', "http://github.com/", "", .)
-    local r = subinstr(`"`r'"', "https://raw.githubusercontent.com/", "", .)
     if substr("`r'", -4, 4) == ".git" local r = substr("`r'", 1, length("`r'") - 4)
     if substr("`r'", -1, 1) == "/"    local r = substr("`r'", 1, length("`r'") - 1)
+    * a pasted /tree/<branch> or /blob/<branch> tail
+    if regexm("`r'", "^([^/]+/[^/]+)/(tree|blob)/([^/]+)") {
+        local br2 = regexs(3)
+        local r   = regexs(1)
+        if "`branch'" == "" local branch "`br2'"
+    }
 
+    * bare owner: look through that owner's repositories for the package
     if !strpos("`r'", "/") {
-        di as error "usepackage: github() wants owner/repo, got `r'"
-        return scalar ok = 0
+        if "`r'" == "" {
+            di as error "usepackage: github() is empty"
+            return scalar ok = 0
+            exit 0
+        }
+        _up_ghsearch, owner("`r'") pkg("`pkg'") branch("`branch'")
+        if "`r(repo)'" == "" {
+            return scalar ok = 0
+            exit 0
+        }
+        local r `"`r(repo)'"'
+        local found `"`r(base)'"'
+        local declared = r(declared)
+        di as text "      matched " as result "`r'" as text " in owner " as result "`repo'"
+        if `declared' == 0 {
+            *-- the repo name merely resembles the package: confirm
+            if "`dryrun'" == "" & "`c(mode)'" == "batch" {
+                di as text "      that repo does not ship a `pkg'.pkg, so the match is a guess;"
+                di as text "      batch run, so nothing installed.  Name it exactly with"
+                di as text "      github(`r') if it is right."
+                return scalar ok = 0
+                exit 0
+            }
+            else if "`dryrun'" == "" {
+                di as text "      no `pkg'.pkg in that repo, so this is a guess. install? (y/n) " ///
+                    _request(_upgha)
+                local a = lower(trim("$_upgha"))
+                global _upgha ""
+                if "`a'" != "y" & "`a'" != "yes" {
+                    di as text "      skipped."
+                    return scalar ok = 0
+                    exit 0
+                }
+            }
+        }
+        _up_netinstall `pkg', from(`"`found'"') `noancillary' `dryrun' `update'
+        return scalar ok = r(ok)
         exit 0
     }
 
@@ -674,6 +752,141 @@ program define _up_github, rclass
 
     _up_netinstall `pkg', from(`"`found'"') `noancillary' `dryrun' `update'
     return scalar ok = r(ok)
+end
+
+
+*==========================================================================
+*  _up_ghsearch : find which of an owner's repositories ships a package
+*
+*  Lists the owner's repositories in ONE request against the ordinary API
+*  (60/hour), not the code-search API (about 10/minute), then narrows by name
+*  before probing anything.  A repository that actually contains <pkg>.pkg is
+*  treated as declared -- that is proof, not a guess -- while a repository whose
+*  name merely resembles the package is offered for confirmation.
+*==========================================================================
+program define _up_ghsearch, rclass
+    syntax , owner(string) pkg(string) [ branch(string) ]
+
+    return local  repo     ""
+    return local  base     ""
+    return scalar declared = 0
+
+    di as text "      searching repositories owned by " as result "`owner'"
+
+    tempfile js
+    capture qui copy "https://api.github.com/users/`owner'/repos?per_page=100" "`js'", replace
+    if _rc {
+        di as error "      could not list `owner''s repositories (API unreachable or rate-limited)"
+        di as text  "      name the repository directly: {bf:github(`owner'/<repo>)}"
+        exit 0
+    }
+
+    *-- collect full_name values, one per repository, in order
+    tempname fh
+    capture file open `fh' using "`js'", read text
+    if _rc exit 0
+    local repos ""
+    file read `fh' line
+    while r(eof) == 0 {
+        local work `"`line'"'
+        local guard 0
+        while strpos(`"`work'"', `""full_name""') > 0 & `guard' < 5000 {
+            local ++guard
+            local pos = strpos(`"`work'"', `""full_name""')
+            local work = substr(`"`work'"', `pos' + 11, .)
+            if regexm(`"`work'"', `"^: *"([^"]+)""') {
+                local repos `"`repos' `=regexs(1)'"'
+            }
+        }
+        file read `fh' line
+    }
+    file close `fh'
+
+    local nrepo : word count `repos'
+    if `nrepo' == 0 {
+        di as error "      no repositories found for `owner'"
+        exit 0
+    }
+    di as text "      `nrepo' repositor(ies) listed; narrowing by name"
+
+    *-- rank: exact repo name, then name-starts-with, then name-contains
+    local P = lower("`pkg'")
+    local tier1 ""
+    local tier2 ""
+    local tier3 ""
+    foreach fn of local repos {
+        local nm = substr("`fn'", strpos("`fn'", "/") + 1, .)
+        local NM = lower("`nm'")
+        if "`NM'" == "`P'" {
+            local tier1 `"`tier1' `fn'"'
+        }
+        else if substr("`NM'", 1, length("`P'")) == "`P'" {
+            local tier2 `"`tier2' `fn'"'
+        }
+        else if strpos("`NM'", "`P'") {
+            local tier3 `"`tier3' `fn'"'
+        }
+    }
+    local cands `"`tier1' `tier2' `tier3'"'
+    local ncand : word count `cands'
+    if `ncand' == 0 {
+        di as error `"      none of `owner''s repositories look like "`pkg'""'
+        di as text   "      name the repository directly: {bf:github(`owner'/<repo>)}"
+        exit 0
+    }
+
+    *-- Probe the shortlist for an installable layout.  Guard every loop with a
+    *-- done flag and return ONCE at the end: -exit- does not reliably break out
+    *-- of a foreach here, so an early return would be overwritten by later
+    *-- iterations (and would print the not-found message on success).
+    local gotrepo  ""
+    local gotbase  ""
+    local declared 0
+    local done     0
+
+    foreach fn of local cands {
+        if `done' == 0 {
+            foreach br in `branch' main master {
+                if `done' == 0 {
+                    foreach sd in "" "ado/" "src/" "stata/" "code/" {
+                        if `done' == 0 {
+                            local base "https://raw.githubusercontent.com/`fn'/`br'/`sd'"
+                            *-- <pkg>.pkg present means the repo DECLARES this
+                            *-- package: that is proof, not a resemblance
+                            _up_urlok "`base'`pkg'.pkg"
+                            local haspkg = r(ok)
+                            if `haspkg' {
+                                _up_urlok "`base'stata.toc"
+                                if r(ok) {
+                                    local gotrepo  "`fn'"
+                                    local gotbase  "`base'"
+                                    local declared 1
+                                    local done     1
+                                }
+                            }
+                            else if "`gotrepo'" == "" {
+                                _up_urlok "`base'stata.toc"
+                                if r(ok) {
+                                    local gotrepo "`fn'"
+                                    local gotbase "`base'"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if "`gotrepo'" != "" {
+        return local  repo     "`gotrepo'"
+        return local  base     "`gotbase'"
+        return scalar declared = `declared'
+        exit 0
+    }
+
+    di as error `"      found repositories matching "`pkg'" but none carries a stata.toc"'
+    di as text   "      (a data-only repository needs {bf:data()} instead)"
 end
 
 

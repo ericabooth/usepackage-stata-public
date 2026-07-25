@@ -9,6 +9,7 @@
 {viewerjumpto "Ancillary files" "usepackage##ancillary"}{...}
 {viewerjumpto "GitHub packages" "usepackage##github"}{...}
 {viewerjumpto "GitHub data" "usepackage##data"}{...}
+{viewerjumpto "Pairing with require" "usepackage##require"}{...}
 {viewerjumpto "Remarks" "usepackage##remarks"}{...}
 {viewerjumpto "Examples" "usepackage##examples"}{...}
 {viewerjumpto "Stored results" "usepackage##results"}{...}
@@ -54,7 +55,8 @@ help for {hi:usepackage}{right:v 2.0.0}
 {synopt :{cmdab:noanc:illary}}do {it:not} fetch ancillary files (default is to fetch them){p_end}
 
 {syntab:GitHub}
-{synopt :{cmdab:git:hub(}{it:owner/repo}{cmd:)}}install a package from a GitHub repository{p_end}
+{synopt :{cmdab:git:hub(}{it:owner/repo}{cmd:)}}install a package from a GitHub repository, or from {it:owner} alone to search that account{p_end}
+{synopt :{cmdab:gho:wner(}{it:owners}{cmd:)}}accounts to search when a name is on neither SSC nor the catalogue{p_end}
 {synopt :{cmd:data(}{it:owner/repo}{cmd:)}}fetch data files from a GitHub repository{p_end}
 {synopt :{cmdab:f:iles(}{it:filelist}{cmd:)}}which repository files to fetch{p_end}
 {synopt :{cmdab:br:anch(}{it:name}{cmd:)}}branch to use (default: try {cmd:main}, then {cmd:master}){p_end}
@@ -186,13 +188,62 @@ All of these are accepted:
 
 {p 8 8 2}{cmd:. usepackage applyvarlabels, github("ericabooth/applyvarlabels-stata-public")}{p_end}
 {p 8 8 2}{cmd:. usepackage sparkta2, github("texas-2036/sparkta2-stata-public")}{p_end}
-{p 8 8 2}{cmd:. usepackage mypkg, github("https://github.com/owner/repo")}   // full URL{p_end}
-{p 8 8 2}{cmd:. usepackage mypkg, github("owner/repo#dev")}                  // pin a branch{p_end}
-{p 8 8 2}{cmd:. usepackage mypkg, github("owner/repo:ado")}                  // files live in ado/{p_end}
+{p 8 8 2}{cmd:. usepackage mypkg, github("https://github.com/owner/repo")}     // pasted URL{p_end}
+{p 8 8 2}{cmd:. usepackage mypkg, github("https://github.com/owner/repo/tree/main")}{p_end}
+{p 8 8 2}{cmd:. usepackage mypkg, github("owner/repo.git")}{p_end}
+{p 8 8 2}{cmd:. usepackage mypkg, github("owner/repo#dev")}                    // pin a branch{p_end}
+{p 8 8 2}{cmd:. usepackage mypkg, github("owner/repo:ado")}                    // files live in ado/{p_end}
 
 {p 4 4 2}
 If no {cmd:stata.toc} turns up, {cmd:usepackage} says so and points you at
 {cmd:data()}, since a repository of datasets is not a package.
+
+{title:Searching a whole account}
+
+{p 4 4 2}
+You usually remember the command, not which repository it sits in. Give
+{cmd:github()} a bare {it:owner} and {cmd:usepackage} works it out:
+
+{p 8 8 2}{cmd:. usepackage editanything, github("texas-2036")}{p_end}
+{p 8 8 2}{cmd:      searching repositories owned by texas-2036}{p_end}
+{p 8 8 2}{cmd:      14 repositor(ies) listed; narrowing by name}{p_end}
+{p 8 8 2}{cmd:      matched texas-2036/EditAnything-stata-public in owner texas-2036}{p_end}
+
+{p 4 4 2}
+It lists the account's repositories in {bf:one} request against the ordinary
+GitHub API (60 an hour), not the code-search API (about 10 a minute), then
+narrows by name before probing anything: an exactly matching repository name
+first, then names beginning with the package name, then names containing it.
+
+{p 4 4 2}
+The distinction that decides whether you are asked: a repository containing a
+{it:pkgname}{cmd:.pkg} has {it:declared} that it ships the package, which is
+proof rather than resemblance, so it installs. A repository whose name merely
+looks right but carries no matching {cmd:.pkg} is offered for confirmation.
+
+{title:Searching your own accounts automatically}
+
+{p 4 4 2}
+If you keep packages on GitHub, name the accounts once and stop typing
+{cmd:github()} at all. Put this in {helpb profile.do}:
+
+{p 8 8 2}{cmd:global usepackage_github "ericabooth texas-2036"}{p_end}
+
+{p 4 4 2}
+and any name that is on neither SSC nor the {cmd:net search} catalogue is looked
+for in those accounts, in order, before {cmd:usepackage} gives up:
+
+{p 8 8 2}{cmd:. usepackage editanything}{p_end}
+{p 8 8 2}{cmd:      not found on SSC, and no match in the net search catalogue}{p_end}
+{p 8 8 2}{cmd:      searching repositories owned by ericabooth}{p_end}
+{p 8 8 2}{cmd:      matched ericabooth/EditAnything-stata-public in owner ericabooth}{p_end}
+{p 8 8 2}{cmd:      installed from https://raw.githubusercontent.com/...}{p_end}
+
+{p 4 4 2}
+{cmd:ghowner()} does the same for one call without setting the global. Both mean
+a single mixed list can span SSC, the Stata Journal, and your own repositories:
+
+{p 8 8 2}{cmd:. usepackage fre editanything sparkta2}{p_end}
 
 
 {marker data}{title:GitHub data}
@@ -222,6 +273,61 @@ Two things this handles that a hand-written {helpb copy} does not.
 {cmd:copy} appears to succeed and leaves you with a file Stata cannot read
 ({cmd:not Stata format}, {cmd:r(610)}). {cmd:usepackage} notices the pointer and
 silently re-fetches from GitHub's media endpoint, reporting that it did so.
+
+
+{marker require}{title:Pairing with require (version pinning)}
+
+{p 4 4 2}
+{cmd:usepackage} answers {it:"is it here, and if not where does it live?"}. It
+does {bf:not} check versions. If you need that {hline 2} and for reproducible
+research you do {hline 2} pair it with {bf:require} by Sergio Correia and
+Matthew P. Seay ({it:Stata Journal} 24(4):599-613, 2024;
+{stata "net describe pr0081, from(https://www.stata-journal.com/software/sj24-4)":pr0081},
+also {stata "ssc describe require":on SSC}).
+
+{p 4 4 2}
+The two solve different halves of one problem and compose cleanly:
+
+{p 8 8 2}{cmd:. usepackage estout coefplot reghdfe ftools, noconfirm}{p_end}
+{p 8 8 2}{cmd:. require reghdfe >= 6.0.0, install}{p_end}
+{p 8 8 2}{cmd:. require ftools  >= 2.49.0, install}{p_end}
+
+{p 4 4 2}
+{cmd:usepackage} gets the packages there whatever they happen to be called and
+wherever they live; {cmd:require} then asserts that the versions are ones your
+results were produced under. That second step matters more than it sounds:
+newer releases of estimation commands can change point estimates or standard
+errors, so "installed" is not the same as "the same".
+
+{p 4 4 2}
+Use {cmd:require}'s requirements-file form when a project has several do-files:
+
+{p 8 8 2}{cmd:. require using "requirements.txt", install}{p_end}
+
+{p 4 4 2}
+and generate that file from what you currently have with
+{cmd:require, list save}. Reach for {cmd:usepackage} first when you do not yet
+know what is missing or where it comes from, and for {cmd:require} to hold a
+known-good set steady afterwards.
+
+{p 4 4 2}
+Division of labour, briefly:
+
+{synoptset 30 tabbed}{...}
+{synopt :{bf:usepackage}}discovery {c -} SSC, SJ/STB catalogue, GitHub; command-to-package
+resolution; ancillary files; data{p_end}
+{synopt :{bf:require}}enforcement {c -} minimum or exact versions, semantic-version
+parsing, requirements files, required Stata version{p_end}
+
+{p 4 4 2}
+{bf:github} by E. F. Haghish ({it:Stata Journal} 20(4):931-951, 2020) is the
+third relative: it is the deeper tool for GitHub-hosted package {it:lifecycle}
+(release tags, author-declared dependency chains, update checks, {cmd:uninstall},
+building packages). It works entirely through the GitHub API, including the
+code-search endpoint, so it is rate-limited in a way {cmd:usepackage}'s
+raw-endpoint probing is not. Prefer {cmd:github} when you want a tagged release
+or an author's declared dependencies; prefer {cmd:usepackage} for one mixed list
+across SSC, the Journal, and GitHub, or when you need data.
 
 
 {marker remarks}{title:Remarks}
@@ -280,6 +386,27 @@ package, {cmd:ssc install} is shorter.
 
 {phang2}{cmd:. usepackage sparkta2, github("texas-2036/sparkta2-stata-public")}{p_end}
 {phang2}{it:its D3 and TopoJSON assets are ancillary, so they come too}{p_end}
+
+{pstd}{bf:Search a whole GitHub account instead of naming the repository}{p_end}
+{phang2}{cmd:. usepackage editanything, github("texas-2036")}{p_end}
+{phang2}{it:lists the account's repos, narrows by name, installs the one that ships it}{p_end}
+
+{pstd}{bf:A pasted repository URL, in any of its usual shapes}{p_end}
+{phang2}{cmd:. usepackage editanything, github("https://github.com/texas-2036/EditAnything-stata-public")}{p_end}
+{phang2}{cmd:. usepackage editanything, github("https://github.com/texas-2036/EditAnything-stata-public/tree/main")}{p_end}
+
+{pstd}{bf:Set your own accounts once, then forget about GitHub}{p_end}
+{phang2}{cmd:. global usepackage_github "ericabooth texas-2036"}    // in profile.do{p_end}
+{phang2}{cmd:. usepackage editanything}{p_end}
+{phang2}{it:not on SSC or in the catalogue, so those accounts are searched}{p_end}
+
+{pstd}{bf:One list spanning SSC, the Stata Journal, and your own repositories}{p_end}
+{phang2}{cmd:. usepackage fre dropmiss editanything sparkta2, noconfirm}{p_end}
+
+{pstd}{bf:Install, then pin the versions with require}{p_end}
+{phang2}{cmd:. usepackage estout coefplot reghdfe ftools, noconfirm}{p_end}
+{phang2}{cmd:. require reghdfe >= 6.0.0, install}{p_end}
+{phang2}{it:see} {help usepackage##require:Pairing with require}{p_end}
 
 {pstd}{bf:One data file from GitHub, loaded}{p_end}
 {phang2}{cmd:. usepackage, data("datasets/gdp") files("data/gdp.csv") useit}{p_end}
@@ -350,4 +477,11 @@ A&M University.
 {p 4 8 2}
 Help: {manhelp net R:net}, {manhelp ssc R:ssc},
 {helpb search}, {helpb findit}, {helpb adoupdate}
+{p_end}
+
+{p 4 8 2}
+Related community commands: {helpb require} (Correia and Seay, {it:SJ} 24(4)) for
+version pinning {c -} see {help usepackage##require:Pairing with require};
+{helpb github} (Haghish, {it:SJ} 20(4)) for GitHub release tags and
+author-declared dependencies.
 {p_end}

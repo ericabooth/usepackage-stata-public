@@ -113,12 +113,57 @@ root then `ado/`, `src/`, `stata/`, `code/`:
 usepackage applyvarlabels, github("ericabooth/applyvarlabels-stata-public")
 usepackage sparkta2,       github("texas-2036/sparkta2-stata-public")
 usepackage mypkg,          github("https://github.com/owner/repo")   // pasted URL
+usepackage mypkg,          github("https://github.com/owner/repo/tree/main")
+usepackage mypkg,          github("owner/repo.git")
 usepackage mypkg,          github("owner/repo#dev")                  // pin a branch
 usepackage mypkg,          github("owner/repo:ado")                  // files in ado/
 ```
 
 If there's no `stata.toc`, it says so and points you at `data()` — a repository of
 datasets isn't a package.
+
+### Searching a whole account
+
+You remember the command, not which repo it's in. Give `github()` a bare owner:
+
+```stata
+. usepackage editanything, github("texas-2036")
+      searching repositories owned by texas-2036
+      14 repositor(ies) listed; narrowing by name
+      matched texas-2036/EditAnything-stata-public in owner texas-2036
+```
+
+It lists the account in **one** request against the ordinary API (60/hour) — not
+the code-search API (~10/minute) — then narrows by name before probing: exact
+repo name, then names starting with the package name, then names containing it.
+
+A repo containing `<pkg>.pkg` has *declared* it ships that package, so it
+installs. A repo whose name merely looks right installs only after you confirm.
+
+### Searching your own accounts automatically
+
+Name your accounts once, in `profile.do`:
+
+```stata
+global usepackage_github "ericabooth texas-2036"
+```
+
+Now anything not on SSC or in the catalogue is looked for there before giving up:
+
+```stata
+. usepackage editanything
+      not found on SSC, and no match in the net search catalogue
+      searching repositories owned by ericabooth
+      matched ericabooth/EditAnything-stata-public in owner ericabooth
+      installed from https://raw.githubusercontent.com/...
+```
+
+`ghowner()` does the same for a single call. Which means one mixed list can span
+SSC, the *Stata Journal*, and your own repositories:
+
+```stata
+usepackage fre dropmiss editanything sparkta2
+```
 
 ## Data from GitHub
 
@@ -187,6 +232,44 @@ if r(nfail) > 0 {
 `r(unresolved)` and `r(deferred)`, so a do-file can stop cleanly instead of
 failing three hundred lines later on an unrecognised command.
 
+## Pairing with `require` (version pinning)
+
+`usepackage` answers *"is it here, and if not, where does it live?"* It does
+**not** check versions. For that — and for reproducible research you need it —
+pair it with [`require`](https://www.stata-journal.com/article.html?article=pr0081)
+by Sergio Correia and Matthew P. Seay (*Stata Journal* 24(4):599–613, 2024).
+They solve different halves of one problem:
+
+```stata
+usepackage estout coefplot reghdfe ftools, noconfirm   // get them, whatever they're called
+require reghdfe >= 6.0.0, install                      // then hold the version steady
+require ftools  >= 2.49.0, install
+```
+
+That second step matters more than it sounds: newer releases of estimation
+commands can change point estimates or standard errors, so *installed* is not the
+same as *the same*. For a project with several do-files, use `require`'s
+requirements-file form:
+
+```stata
+require using "requirements.txt", install
+```
+
+and generate that file from what you have with `require, list save`.
+
+| | Job |
+|---|---|
+| **`usepackage`** | discovery — SSC, SJ/STB catalogue, GitHub; command→package resolution; ancillary files; data |
+| **`require`** | enforcement — minimum/exact versions, semver parsing, requirements files, Stata version |
+| **`github`** (Haghish, *SJ* 20(4)) | GitHub lifecycle — release tags, author-declared dependency chains, update checks, `uninstall`, `make` |
+
+Reach for `usepackage` when you don't yet know what's missing or where it comes
+from; `require` to keep a known-good set steady; `github` when you want a tagged
+release or an author's declared dependencies. Note that `github` works entirely
+through the GitHub API — including the code-search endpoint, ~10 requests/minute
+unauthenticated — whereas `usepackage`'s package installs use only
+`raw.githubusercontent.com` and aren't rate-limited.
+
 ## Options
 
 | Option | What it does |
@@ -197,7 +280,8 @@ failing three hundred lines later on an unrecognised command.
 | `noancillary` | don't fetch ancillary files (default is to fetch them) |
 | `dryrun` | report the plan; install nothing |
 | `from(url)` | install from this net source, skipping the search |
-| `github(owner/repo)` | install a package from a GitHub repository |
+| `github(owner/repo)` | install from a GitHub repo, or give a bare `owner` to search that account |
+| `ghowner(owners)` | accounts to search when a name isn't on SSC or in the catalogue |
 | `data(owner/repo)` | fetch data files from a GitHub repository |
 | `files(list)` | which repository files to fetch |
 | `branch(name)` | branch to use (default: `main`, then `master`) |
