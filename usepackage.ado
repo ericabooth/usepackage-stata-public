@@ -62,10 +62,11 @@ program define usepackage, rclass
 
     *-- route: install one package from a GitHub repository -------------------
     if `"`github'"' != "" {
-        if "`pkgs'" == "" {
-            di as error "usepackage: github() needs a package name, e.g."
-            di as error `"    usepackage applyvarlabels, github("ericabooth/applyvarlabels-stata-public")"'
-            exit 198
+        *-- catalogue mode: no package name, or "*", means "show me what is
+        *-- there" rather than "install this"
+        if "`pkgs'" == "" | "`pkgs'" == "*" | "`pkgs'" == "all" {
+            _up_ghlist, target(`"`github'"') branch(`"`branch'"')
+            exit 0
         }
         foreach p in `pkgs' {
             _up_github `p',                  ///
@@ -752,6 +753,234 @@ program define _up_github, rclass
 
     _up_netinstall `pkg', from(`"`found'"') `noancillary' `dryrun' `update'
     return scalar ok = r(ok)
+end
+
+
+*==========================================================================
+*  _up_ghnorm : reduce anything GitHub-shaped to owner[/repo] (+ branch, subdir)
+*
+*  Strips the scheme FIRST: "https://github.com/..." carries a colon of its own,
+*  so splitting on ":" for the subdir form before removing it leaves "https".
+*==========================================================================
+program define _up_ghnorm, rclass
+    syntax , target(string) [ branch(string) ]
+
+    local r `"`target'"'
+    local sub ""
+
+    local r = subinstr(`"`r'"', "https://github.com/", "", .)
+    local r = subinstr(`"`r'"', "http://github.com/", "", .)
+    local r = subinstr(`"`r'"', "https://raw.githubusercontent.com/", "", .)
+    local r = subinstr(`"`r'"', "http://raw.githubusercontent.com/", "", .)
+    local r = subinstr(`"`r'"', "https://www.github.com/", "", .)
+    local r = subinstr(`"`r'"', "github.com/", "", .)
+
+    if strpos(`"`r'"', "#") {
+        local branch = substr(`"`r'"', strpos(`"`r'"', "#") + 1, .)
+        local r      = substr(`"`r'"', 1, strpos(`"`r'"', "#") - 1)
+    }
+    if strpos(`"`r'"', ":") {
+        local sub = substr(`"`r'"', strpos(`"`r'"', ":") + 1, .)
+        local r   = substr(`"`r'"', 1, strpos(`"`r'"', ":") - 1)
+        if substr("`sub'", -1, 1) != "/" local sub "`sub'/"
+    }
+
+    if substr("`r'", -4, 4) == ".git" local r = substr("`r'", 1, length("`r'") - 4)
+    if substr("`r'", -1, 1) == "/"    local r = substr("`r'", 1, length("`r'") - 1)
+    if regexm("`r'", "^([^/]+/[^/]+)/(tree|blob)/([^/]+)") {
+        local br2 = regexs(3)
+        local r   = regexs(1)
+        if "`branch'" == "" local branch "`br2'"
+    }
+
+    return local target `"`r'"'
+    return local branch `"`branch'"'
+    return local sub    `"`sub'"'
+    return scalar isrepo = strpos("`r'", "/") > 0
+end
+
+
+*==========================================================================
+*  _up_ghlist : catalogue the installable Stata packages in an account or repo
+*
+*  One API request lists the account (with each repository's default branch);
+*  everything after that is raw.githubusercontent.com, which is not rate-limited.
+*  A repository is installable when it carries a stata.toc, and that file names
+*  the packages it offers on its "p" lines -- so the toc is the authority on what
+*  is actually installable, not a guess from file names.
+*==========================================================================
+program define _up_ghlist
+    syntax , target(string) [ branch(string) ]
+
+    _up_ghnorm, target(`"`target'"') branch(`"`branch'"')
+    local t   `"`r(target)'"'
+    local br0 `"`r(branch)'"'
+    local isrepo = r(isrepo)
+
+    *-- a single repository: just read its toc
+    if `isrepo' {
+        di as text _n "{bf:usepackage}: Stata packages in " as result "`t'"
+        _up_ghreadtoc, repo("`t'") branch(`"`br0'"')
+        if "`r(pkgs)'" == "" {
+            di as error "      no stata.toc found (so nothing here is net-installable)"
+            di as text  "      for a data-only repository use {bf:data()}"
+            exit 0
+        }
+        local owner = substr("`t'", 1, strpos("`t'", "/") - 1)
+        di as text "      packages: " as result "`r(pkgs)'"
+        if `"`r(desc)'"' != "" di as text "      " `"`r(desc)'"'
+        local one : word 1 of `r(pkgs)'
+        di as text `"      install with: {bf:usepackage `one', github(`t')}"'
+        exit 0
+    }
+
+    *-- a whole account
+    local owner "`t'"
+    di as text _n "{bf:usepackage}: Stata packages owned by " as result "`owner'"
+
+    tempfile js
+    capture qui copy "https://api.github.com/users/`owner'/repos?per_page=100" "`js'", replace
+    if _rc {
+        di as error "      could not list `owner''s repositories (API unreachable or rate-limited)"
+        exit 601
+    }
+
+    *-- full_name and default_branch appear once per repository, in order, so
+    *-- collecting each into a list and pairing by index is exact
+    tempname fh
+    capture file open `fh' using "`js'", read text
+    if _rc exit 601
+    local repos ""
+    local brs   ""
+    file read `fh' line
+    while r(eof) == 0 {
+        foreach key in full_name default_branch {
+            local work `"`line'"'
+            local guard 0
+            local klen = length("`key'") + 2
+            while strpos(`"`work'"', `""`key'""') > 0 & `guard' < 5000 {
+                local ++guard
+                local pos = strpos(`"`work'"', `""`key'""')
+                local work = substr(`"`work'"', `pos' + `klen', .)
+                if regexm(`"`work'"', `"^: *"([^"]+)""') {
+                    if "`key'" == "full_name" {
+                        local repos `"`repos' `=regexs(1)'"'
+                    }
+                    else {
+                        local brs `"`brs' `=regexs(1)'"'
+                    }
+                }
+            }
+        }
+        file read `fh' line
+    }
+    file close `fh'
+
+    local nrepo : word count `repos'
+    if `nrepo' == 0 {
+        di as error "      no repositories found for `owner'"
+        exit 601
+    }
+    di as text "      `nrepo' repositor(ies); checking each for a stata.toc..."
+    di as text ""
+    di as text "      {hline 62}"
+    di as text "      {bf:package}          {bf:repository}                      {bf:branch}"
+    di as text "      {hline 62}"
+
+    local npkg  0
+    local nwith 0
+    local allpkgs ""
+    forvalues i = 1/`nrepo' {
+        local fn : word `i' of `repos'
+        local db : word `i' of `brs'
+        if "`br0'" != "" local db "`br0'"
+        _up_ghreadtoc, repo("`fn'") branch("`db'")
+        local plist `"`r(pkgs)'"'
+        if "`plist'" != "" {
+            local ++nwith
+            local rn = substr("`fn'", strpos("`fn'", "/") + 1, .)
+            local usebr `"`r(branch)'"'
+            foreach p of local plist {
+                local ++npkg
+                local allpkgs `"`allpkgs' `p'"'
+                di as text "      " as result %-17s "`p'" ///
+                   as text %-33s "`rn'" as text "`usebr'"
+            }
+        }
+    }
+    di as text "      {hline 62}"
+
+    if `npkg' == 0 {
+        di as text "      none of `owner''s repositories carry a stata.toc"
+        di as text "      (a repository needs stata.toc + <pkg>.pkg to be net-installable)"
+        exit 0
+    }
+
+    local nno = `nrepo' - `nwith'
+    di as text "      `npkg' package(s) in `nwith' repositor(ies); " ///
+               "`nno' repositor(ies) have no stata.toc"
+    di as text `"      install one with: {bf:usepackage <package>, github(`owner')}"'
+    di as text `"      or all of them:   {bf:usepackage`allpkgs', ghowner(`owner')}"'
+end
+
+
+*==========================================================================
+*  _up_ghreadtoc : read a repository's stata.toc and return the packages it names
+*==========================================================================
+program define _up_ghreadtoc, rclass
+    syntax , repo(string) [ branch(string) ]
+
+    return local pkgs   ""
+    return local desc   ""
+    return local branch ""
+    return local base   ""
+
+    *-- A program cannot read its own staged return values, so guarding on
+    *-- "`r(pkgs)'" would actually test the PREVIOUS caller's r() -- which, in a
+    *-- loop over repositories, silently skipped every repo after the first hit.
+    *-- Use a plain local, and stop at the first branch that works so the branch
+    *-- reported is the real one (raw.githubusercontent resolves "master" even
+    *-- when the default branch is "main", so probing on would always end there).
+    local gotit 0
+    local tried ""
+    foreach br in `branch' main master {
+        if !strpos(" `tried' ", " `br' ") & `gotit' == 0 {
+            local tried "`tried' `br'"
+            foreach sd in "" "ado/" {
+                if `gotit' == 0 {
+                    local base "https://raw.githubusercontent.com/`repo'/`br'/`sd'"
+                    tempfile toc
+                    capture qui copy "`base'stata.toc" "`toc'", replace
+                    if _rc == 0 {
+                        local plist ""
+                        local dfirst ""
+                        tempname th
+                        capture file open `th' using "`toc'", read text
+                        if _rc == 0 {
+                            file read `th' tl
+                            while r(eof) == 0 {
+                                if regexm(`"`tl'"', "^p +([^ ]+)") {
+                                    local plist `"`plist' `=regexs(1)'"'
+                                }
+                                else if regexm(`"`tl'"', "^d +(.+)$") & "`dfirst'" == "" {
+                                    local dfirst `"`=trim(regexs(1))'"'
+                                }
+                                file read `th' tl
+                            }
+                            file close `th'
+                        }
+                        if "`plist'" != "" {
+                            local gotit 1
+                            return local pkgs   `"`plist'"'
+                            return local desc   `"`dfirst'"'
+                            return local branch "`br'"
+                            return local base   "`base'"
+                        }
+                    }
+                }
+            }
+        }
+    }
 end
 
 
