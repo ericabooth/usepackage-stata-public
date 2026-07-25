@@ -16,6 +16,9 @@ what it found, what it skipped, and why, and ends with a one-line tally.
 
 Named for, and inspired by, LaTeX's `\usepackage`.
 
+
+<img width="2400" height="1260" alt="usepackage" src="https://github.com/user-attachments/assets/8a174d50-9a07-4522-a6a6-8a0c1c58762e" />
+
 ## Install
 
 ```stata
