@@ -1,0 +1,4 @@
+v 3
+d usepackage: find, verify, and install the user-written packages (and data) a do-file needs
+d Eric A. Booth, Sr Researcher, Texas 2036, eric.a.booth@gmail.com
+p usepackage

@@ -1,0 +1,49 @@
+v 3
+d usepackage: find, verify, and install the user-written packages (and data) a do-file needs
+d
+d usepackage takes the list of user-written packages a do-file needs and makes
+d sure they are installed, so a shared do-file can open with one line instead of
+d a stack of ssc install / net install commands or a paragraph telling the reader
+d to go run findit.  For each name it checks whether it is already installed,
+d then SSC, then the net search catalogue (which covers the Stata Journal and
+d the STB), reporting what it found, what it skipped, and why.
+d
+d The name you ask for is often a COMMAND rather than a PACKAGE -- dropmiss ships
+d inside dm89_2, bacon inside st0197.  usepackage resolves that case, but because
+d the mapping is inferred it asks before installing, and in a batch run it
+d declines rather than guessing (see noconfirm).
+d
+d Ancillary files (a package's example do-files and datasets, which net install
+d does not place on the adopath) are fetched by default and reported; noancillary
+d skips them.
+d
+d github() installs a package straight from a GitHub repository, probing branch
+d (main, then master) and the usual layouts for stata.toc.  data() fetches data
+d files out of a GitHub repository, guessing the live branch and transparently
+d resolving Git LFS pointers, which the raw endpoint otherwise serves as a
+d 130-byte text stub that Stata cannot read.  scan() reads a do-file and reports
+d which of its commands do not resolve on this machine.
+d
+d Requires: Stata 16.0 or newer
+d
+d Author: Eric A. Booth, Sr Researcher, Texas 2036
+d Support: eric.a.booth@gmail.com
+d
+d Version 1.0.0 (2011) was written at the Public Policy Research Institute,
+d Texas A&M University.
+d
+d KW: user-written packages
+d KW: findit
+d KW: search
+d KW: ssc install
+d KW: net install
+d KW: ancillary files
+d KW: github
+d KW: git lfs
+d KW: reproducibility
+d
+d Distribution-Date: 20260725
+d
+f usepackage.ado
+f usepackage.sthlp
+f example_usepackage.do
