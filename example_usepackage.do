@@ -77,7 +77,7 @@ usepackage applyvarlabels, github("ericabooth/applyvarlabels-stata-public")
 * usepackage applyvarlabels, github("ericabooth/applyvarlabels-stata-public") noancillary
 
 * sparkta2's D3 / TopoJSON assets are ancillary by extension, so they come along
-* usepackage sparkta2, github("texas-2036/sparkta2-stata-public")
+* usepackage sparkta2, github("ericabooth/sparkta2-stata-public")
 
 * all of these forms are accepted:
 *   github("owner/repo")                      plain

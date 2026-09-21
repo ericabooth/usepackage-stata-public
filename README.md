@@ -114,7 +114,7 @@ root then `ado/`, `src/`, `stata/`, `code/`:
 
 ```stata
 usepackage applyvarlabels, github("ericabooth/applyvarlabels-stata-public")
-usepackage sparkta2,       github("texas-2036/sparkta2-stata-public")
+usepackage sparkta2,       github("ericabooth/sparkta2-stata-public")
 usepackage mypkg,          github("https://github.com/owner/repo")   // pasted URL
 usepackage mypkg,          github("https://github.com/owner/repo/tree/main")
 usepackage mypkg,          github("owner/repo.git")
@@ -130,10 +130,10 @@ datasets isn't a package.
 You remember the command, not which repo it's in. Give `github()` a bare owner:
 
 ```stata
-. usepackage editanything, github("texas-2036")
-      searching repositories owned by texas-2036
+. usepackage editanything, github("ericabooth")
+      searching repositories owned by ericabooth
       14 repositor(ies) listed; narrowing by name
-      matched texas-2036/EditAnything-stata-public in owner texas-2036
+      matched ericabooth/EditAnything-stata-public in owner ericabooth
 ```
 
 It lists the account in **one** request against the ordinary API (60/hour) — not
@@ -148,7 +148,7 @@ installs. A repo whose name merely looks right installs only after you confirm.
 Leave the package name off (or give `*`) and `github()` becomes a catalogue:
 
 ```stata
-. usepackage, github("texas-2036")
+. usepackage, github("ericabooth")
       14 repositor(ies); checking each for a stata.toc...
       --------------------------------------------------------
       package          repository                      branch
@@ -165,7 +165,7 @@ reads — so it lists what's genuinely installable, not a guess from file names.
 Point it at a single repo to see just that one:
 
 ```stata
-usepackage *, github("texas-2036/sparkta2-stata-public")
+usepackage *, github("ericabooth/sparkta2-stata-public")
 ```
 
 ### Searching your own accounts automatically

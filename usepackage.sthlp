@@ -191,7 +191,7 @@ the repository root and then in {cmd:ado/}, {cmd:src/}, {cmd:stata/} and
 All of these are accepted:
 
 {p 8 8 2}{cmd:. usepackage applyvarlabels, github("ericabooth/applyvarlabels-stata-public")}{p_end}
-{p 8 8 2}{cmd:. usepackage sparkta2, github("texas-2036/sparkta2-stata-public")}{p_end}
+{p 8 8 2}{cmd:. usepackage sparkta2, github("ericabooth/sparkta2-stata-public")}{p_end}
 {p 8 8 2}{cmd:. usepackage mypkg, github("https://github.com/owner/repo")}     // pasted URL{p_end}
 {p 8 8 2}{cmd:. usepackage mypkg, github("https://github.com/owner/repo/tree/main")}{p_end}
 {p 8 8 2}{cmd:. usepackage mypkg, github("owner/repo.git")}{p_end}
@@ -208,10 +208,10 @@ If no {cmd:stata.toc} turns up, {cmd:usepackage} says so and points you at
 You usually remember the command, not which repository it sits in. Give
 {cmd:github()} a bare {it:owner} and {cmd:usepackage} works it out:
 
-{p 8 8 2}{cmd:. usepackage editanything, github("texas-2036")}{p_end}
-{p 8 8 2}{cmd:      searching repositories owned by texas-2036}{p_end}
+{p 8 8 2}{cmd:. usepackage editanything, github("ericabooth")}{p_end}
+{p 8 8 2}{cmd:      searching repositories owned by ericabooth}{p_end}
 {p 8 8 2}{cmd:      14 repositor(ies) listed; narrowing by name}{p_end}
-{p 8 8 2}{cmd:      matched texas-2036/EditAnything-stata-public in owner texas-2036}{p_end}
+{p 8 8 2}{cmd:      matched ericabooth/EditAnything-stata-public in owner ericabooth}{p_end}
 
 {p 4 4 2}
 It lists the account's repositories in {bf:one} request against the ordinary
@@ -231,8 +231,8 @@ looks right but carries no matching {cmd:.pkg} is offered for confirmation.
 Leave the package name off, or give {cmd:*}, and {cmd:github()} becomes a
 catalogue rather than an install:
 
-{p 8 8 2}{cmd:. usepackage, github("texas-2036")}{p_end}
-{p 8 8 2}{cmd:. usepackage *, github("texas-2036")}     // the same thing{p_end}
+{p 8 8 2}{cmd:. usepackage, github("ericabooth")}{p_end}
+{p 8 8 2}{cmd:. usepackage *, github("ericabooth")}     // the same thing{p_end}
 
 {p 8 8 2}{cmd:      14 repositor(ies); checking each for a stata.toc...}{p_end}
 {p 8 8 2}{cmd:      --------------------------------------------------------}{p_end}
@@ -250,7 +250,7 @@ The package names come from each repository's {cmd:stata.toc}, which is what
 rather than a guess from file names. Repositories with no {cmd:stata.toc} are
 counted but not listed. Point it at one repository instead to see just that:
 
-{p 8 8 2}{cmd:. usepackage *, github("texas-2036/sparkta2-stata-public")}{p_end}
+{p 8 8 2}{cmd:. usepackage *, github("ericabooth/sparkta2-stata-public")}{p_end}
 
 
 {title:Searching your own accounts automatically}
@@ -416,20 +416,20 @@ package, {cmd:ssc install} is shorter.
 {phang2}{cmd:. usepackage applyvarlabels, github("ericabooth/applyvarlabels-stata-public")}{p_end}
 {phang2}{it:probes the layout, installs, and fetches the 2 ancillary example files}{p_end}
 
-{phang2}{cmd:. usepackage sparkta2, github("texas-2036/sparkta2-stata-public")}{p_end}
+{phang2}{cmd:. usepackage sparkta2, github("ericabooth/sparkta2-stata-public")}{p_end}
 {phang2}{it:its D3 and TopoJSON assets are ancillary, so they come too}{p_end}
 
 {pstd}{bf:Search a whole GitHub account instead of naming the repository}{p_end}
-{phang2}{cmd:. usepackage editanything, github("texas-2036")}{p_end}
+{phang2}{cmd:. usepackage editanything, github("ericabooth")}{p_end}
 {phang2}{it:lists the account's repos, narrows by name, installs the one that ships it}{p_end}
 
 {pstd}{bf:What Stata packages does an account ship?}{p_end}
-{phang2}{cmd:. usepackage, github("texas-2036")}{p_end}
+{phang2}{cmd:. usepackage, github("ericabooth")}{p_end}
 {phang2}{cmd:. usepackage *, github("ericabooth")}{p_end}
 
 {pstd}{bf:A pasted repository URL, in any of its usual shapes}{p_end}
-{phang2}{cmd:. usepackage editanything, github("https://github.com/texas-2036/EditAnything-stata-public")}{p_end}
-{phang2}{cmd:. usepackage editanything, github("https://github.com/texas-2036/EditAnything-stata-public/tree/main")}{p_end}
+{phang2}{cmd:. usepackage editanything, github("https://github.com/ericabooth/EditAnything-stata-public")}{p_end}
+{phang2}{cmd:. usepackage editanything, github("https://github.com/ericabooth/EditAnything-stata-public/tree/main")}{p_end}
 
 {pstd}{bf:Set your own accounts once, then forget about GitHub}{p_end}
 {phang2}{cmd:. global usepackage_github "ericabooth texas-2036"}    // in profile.do{p_end}
