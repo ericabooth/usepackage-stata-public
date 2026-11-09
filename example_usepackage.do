@@ -1,4 +1,4 @@
-*! example_usepackage.do -- a tour of usepackage 2.0.1
+*! example_usepackage.do -- a tour of usepackage 2.0.2
 *! Eric A. Booth, Sr Researcher, Texas 2036 <eric.a.booth@gmail.com>
 *!
 *! Run this from a scratch directory: several steps drop ancillary files and
@@ -99,12 +99,13 @@ di "gdp.csv: " _N " obs, " c(k) " vars"
 * files, so a plain -copy- appears to work and leaves a file Stata cannot read
 * ("not Stata format", r(610)).  usepackage spots the pointer and re-fetches
 * from GitHub's media endpoint instead.
-usepackage, data("scunning1975/mixtape") files("nsw_mixtape.dta") useit
+* (clear: the CSV loaded above counts as unsaved data in memory)
+usepackage, data("scunning1975/mixtape") files("nsw_mixtape.dta") useit clear
 di "nsw_mixtape.dta: " _N " obs, " c(k) " vars"
 
 * older repositories are still on master; usepackage finds whichever is live
 usepackage, data("fivethirtyeight/data") ///
-    files("airline-safety/airline-safety.csv") useit
+    files("airline-safety/airline-safety.csv") useit clear
 di "airline-safety.csv: " _N " obs, " c(k) " vars"
 
 * several files, into a subdirectory of their own (created if missing)

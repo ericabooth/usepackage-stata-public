@@ -136,8 +136,9 @@ You remember the command, not which repo it's in. Give `github()` a bare owner:
       matched ericabooth/EditAnything-stata-public in owner ericabooth
 ```
 
-It lists the account in **one** request against the ordinary API (60/hour) — not
-the code-search API (~10/minute) — then narrows by name before probing: exact
+It lists the account against the ordinary API (60 requests/hour; one request
+per 100 repositories, up to 1,000 repositories) — not the code-search API
+(~10/minute) — then narrows by name before probing: exact
 repo name, then names starting with the package name, then names containing it.
 
 A repo containing `<pkg>.pkg` has *declared* it ships that package, so it
@@ -205,6 +206,13 @@ usepackage, data("datasets/gdp") files("data/gdp.csv") useit
 Name no files and `usepackage` lists every `.dta`/`.csv`/`.tsv`/`.xlsx`/`.txt` it
 can see and asks before downloading in bulk.
 
+`useit` replaces the data in memory. If they have unsaved changes it stops with
+error 4 ("no; data in memory would be lost") before fetching anything, as `use`
+would; add `clear` to allow it. Data loaded from a CSV or Excel file count as
+unsaved, so a second `useit` in a row needs `clear`. Delimited files are read
+with `bindquote(strict)`, so a quoted text field holding a line break stays in
+one row.
+
 Two things this handles that a hand-written `copy` does not.
 
 **Branch guessing.** Older repositories are on `master`, newer ones on `main`.
@@ -232,7 +240,10 @@ re-fetches from GitHub's media endpoint:
 `scan()` reads a do-file and reports the commands that don't resolve on this
 machine — what a collaborator would be missing. Built-ins aren't flagged, and
 `quietly`/`capture`/`noisily` prefixes are stripped before the command name is
-read. It reports only; it never installs.
+read. Programs the do-file defines itself, `end`, the contents of `mata` and
+`python` blocks, comments, and lines that only continue the one before (`///`,
+or anything up to the `;` under `#delimit ;`) are not reported. It reports only;
+it never installs.
 
 ```stata
 . usepackage, scan("analysis.do")
@@ -258,7 +269,10 @@ if r(nfail) > 0 {
 
 `usepackage` stores `r(nreq)`, `r(nok)`, `r(nskip)`, `r(ndefer)`, `r(nfail)`,
 `r(unresolved)` and `r(deferred)`, so a do-file can stop cleanly instead of
-failing three hundred lines later on an unrecognised command. The `github()` and
+failing three hundred lines later on an unrecognised command. With `dryrun`,
+`r(nok)` counts what would be installed and `r(ndefer)` the inferred matches
+that would wait for confirmation (none with `noconfirm`). `scan()` stores
+`r(missing)`. The lists carry no leading blank. The `github()` and
 `data()` routes store the same results. For `data()`, `r(nfail)` also counts data
 files that could not be fetched, and `r(ndreq)`, `r(ndok)`, `r(ndfail)`,
 `r(datafiles)` and `r(datafailed)` give the detail.
@@ -305,7 +319,7 @@ unauthenticated — whereas `usepackage`'s package installs use only
 
 | Option | What it does |
 |---|---|
-| `update` | reinstall the listed packages even if present |
+| `update` | reinstall the listed packages even if present; the installed copy is overwritten in place, so it survives a failed reinstall |
 | `nearest` | also consider similarly *named* packages (still asks) |
 | `noconfirm` | accept inferred matches without asking |
 | `noancillary` | don't fetch ancillary files (default is to fetch them) |
@@ -318,13 +332,18 @@ unauthenticated — whereas `usepackage`'s package installs use only
 | `branch(name)` | branch to use (default: `main`, then `master`) |
 | `into(dir)` | where to put fetched data (default: current directory); created, with any parent folders, if missing |
 | `useit` | load the fetched dataset when exactly one was fetched |
+| `clear` | with `useit`, allow unsaved data in memory to be replaced (otherwise error 4) |
 | `scan(file)` | report commands in a do-file that don't resolve |
 
 ## Known limits
 
-- Finding non-SSC packages means calling `net search`, which writes its catalogue
-  to any open log even when run quietly. Nothing reaches the Results window, but
-  expect the raw catalogue in a log file.
+- Finding non-SSC packages means calling `net search`, which writes its raw
+  catalogue to any open log even when run quietly. `usepackage` pauses every open
+  log for the length of the search and resumes it afterwards, so log files stay
+  clean. It cannot do that for the log of a batch run (`stata -b do ...`), which
+  is the Results window itself; expect the raw catalogue lines there.
+- `github(owner)` reads up to 1,000 of an account's repositories (ten API
+  requests of 100).
 - `data()` without `files()` uses the GitHub API, which allows 60 unauthenticated
   requests an hour. If you hit that, name the files with `files()` instead.
 - For a single known package, `ssc install` is shorter. `usepackage` earns its
@@ -332,6 +351,18 @@ unauthenticated — whereas `usepackage`'s package installs use only
 
 ## Changelog
 
+- **2.0.2 (9 Nov 2026):** `update` no longer uninstalls before reinstalling, so a
+  failed reinstall (network down, source moved) leaves the working copy in place;
+  before, the command was gone. `useit` stops with error 4 when the data in
+  memory have unsaved changes, unless the new `clear` option is given; before, it
+  replaced them without a word. Do-files that chain `useit` over unsaved data now
+  need `clear`. `dryrun` counts an inferred match under `r(ndefer)` unless
+  `noconfirm` is given, matching what a real batch run does. `scan()` no longer
+  reports `end`, programs the file defines, Mata keywords, or continuation
+  lines. `github(owner)` reads every page of the repository list, not just the
+  first 100. `useit` reads CSV with `bindquote(strict)`. Open logs are paused
+  during the catalogue search. `r()` lists have no leading blank, and a bare
+  `usepackage` prints the syntax.
 - **2.0.1 (9 Nov 2026):** `github()` and `data()` now store `r()` like the package
   route. Before, they returned with `r()` empty, so the `if r(nfail) > 0` guard
   fired (missing > 0) even after a successful `github()` install, and a failed
