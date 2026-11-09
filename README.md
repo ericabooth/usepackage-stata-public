@@ -258,7 +258,10 @@ if r(nfail) > 0 {
 
 `usepackage` stores `r(nreq)`, `r(nok)`, `r(nskip)`, `r(ndefer)`, `r(nfail)`,
 `r(unresolved)` and `r(deferred)`, so a do-file can stop cleanly instead of
-failing three hundred lines later on an unrecognised command.
+failing three hundred lines later on an unrecognised command. The `github()` and
+`data()` routes store the same results. For `data()`, `r(nfail)` also counts data
+files that could not be fetched, and `r(ndreq)`, `r(ndok)`, `r(ndfail)`,
+`r(datafiles)` and `r(datafailed)` give the detail.
 
 ## Pairing with `require` (version pinning)
 
@@ -313,7 +316,7 @@ unauthenticated — whereas `usepackage`'s package installs use only
 | `data(owner/repo)` | fetch data files from a GitHub repository |
 | `files(list)` | which repository files to fetch |
 | `branch(name)` | branch to use (default: `main`, then `master`) |
-| `into(dir)` | where to put fetched data (default: current directory) |
+| `into(dir)` | where to put fetched data (default: current directory); created, with any parent folders, if missing |
 | `useit` | load the fetched dataset when exactly one was fetched |
 | `scan(file)` | report commands in a do-file that don't resolve |
 
@@ -326,6 +329,16 @@ unauthenticated — whereas `usepackage`'s package installs use only
   requests an hour. If you hit that, name the files with `files()` instead.
 - For a single known package, `ssc install` is shorter. `usepackage` earns its
   keep on lists, on non-SSC sources, and on data.
+
+## Changelog
+
+- **2.0.1 (9 Nov 2026):** `github()` and `data()` now store `r()` like the package
+  route. Before, they returned with `r()` empty, so the `if r(nfail) > 0` guard
+  fired (missing > 0) even after a successful `github()` install, and a failed
+  one went unnoticed. `data()` creates `into()`, including nested folders, before
+  fetching; before, every file failed with rc 603 when the folder was missing.
+  A leading `~` in `into()` is expanded.
+- **2.0.0 (25 Jul 2026):** rewrite; see "What version 2 changes".
 
 ## Author and license
 

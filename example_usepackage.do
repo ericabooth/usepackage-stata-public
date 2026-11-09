@@ -1,4 +1,4 @@
-*! example_usepackage.do -- a tour of usepackage 2.0.0
+*! example_usepackage.do -- a tour of usepackage 2.0.1
 *! Eric A. Booth, Sr Researcher, Texas 2036 <eric.a.booth@gmail.com>
 *!
 *! Run this from a scratch directory: several steps drop ancillary files and
@@ -107,10 +107,10 @@ usepackage, data("fivethirtyeight/data") ///
     files("airline-safety/airline-safety.csv") useit
 di "airline-safety.csv: " _N " obs, " c(k) " vars"
 
-* several files, into a subdirectory of their own
-cap mkdir data
+* several files, into a subdirectory of their own (created if missing)
 usepackage, data("scunning1975/mixtape") ///
     files("nsw_mixtape.dta cps_mixtape.dta") into("data")
+di "fetched " r(ndok) " of " r(ndreq) " data file(s); r(nfail) = " r(nfail)
 
 * name no files and usepackage lists what a repository holds and asks before
 * downloading in bulk (dryrun here so nothing is fetched)

@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 2.0.0  25jul2026}{...}
+{* *! version 2.0.1  9nov2026}{...}
 {vieweralsosee "[R] net" "help net"}{...}
 {vieweralsosee "[R] ssc" "help ssc"}{...}
 {vieweralsosee "[R] search" "help search"}{...}
@@ -64,7 +64,7 @@ help for {hi:usepackage}{right:v 2.0.0}
 {synopt :{cmd:data(}{it:owner/repo}{cmd:)}}fetch data files from a GitHub repository{p_end}
 {synopt :{cmdab:f:iles(}{it:filelist}{cmd:)}}which repository files to fetch{p_end}
 {synopt :{cmdab:br:anch(}{it:name}{cmd:)}}branch to use (default: try {cmd:main}, then {cmd:master}){p_end}
-{synopt :{cmd:into(}{it:dir}{cmd:)}}directory to fetch data into (default: current){p_end}
+{synopt :{cmd:into(}{it:dir}{cmd:)}}directory to fetch data into (default: current); created if missing{p_end}
 {synopt :{cmdab:use:it}}load the fetched dataset when exactly one was fetched{p_end}
 
 {syntab:Auditing a do-file}
@@ -455,7 +455,7 @@ package, {cmd:ssc install} is shorter.
 {pstd}{bf:A repository still on master}{p_end}
 {phang2}{cmd:. usepackage, data("fivethirtyeight/data") files("airline-safety/airline-safety.csv") useit}{p_end}
 
-{pstd}{bf:Several data files into a subdirectory}{p_end}
+{pstd}{bf:Several data files into a subdirectory (created if it does not exist)}{p_end}
 {phang2}{cmd:. usepackage, data("scunning1975/mixtape") files("nsw_mixtape.dta cps_mixtape.dta") into("data")}{p_end}
 
 {pstd}{bf:See what data a repository holds before taking any}{p_end}
@@ -482,11 +482,21 @@ package, {cmd:ssc install} is shorter.
 {synopt:{cmd:r(nok)}}packages installed{p_end}
 {synopt:{cmd:r(nskip)}}packages already present{p_end}
 {synopt:{cmd:r(ndefer)}}inferred matches left awaiting confirmation{p_end}
-{synopt:{cmd:r(nfail)}}packages not resolved{p_end}
+{synopt:{cmd:r(nfail)}}packages not resolved plus data files not fetched{p_end}
+{synopt:{cmd:r(ndreq)}}data files requested with {cmd:data()}{p_end}
+{synopt:{cmd:r(ndok)}}data files fetched{p_end}
+{synopt:{cmd:r(ndfail)}}data files not fetched{p_end}
 
 {p2col 5 20 24 2: Macros}{p_end}
-{synopt:{cmd:r(unresolved)}}names that could not be found{p_end}
+{synopt:{cmd:r(unresolved)}}package names that could not be found{p_end}
 {synopt:{cmd:r(deferred)}}names whose match needs confirming{p_end}
+{synopt:{cmd:r(datafiles)}}data files fetched{p_end}
+{synopt:{cmd:r(datafailed)}}data files that could not be fetched{p_end}
+{synopt:{cmd:r(missing)}}with {cmd:scan()}, commands that did not resolve{p_end}
+
+{pstd}Every route ({it:packages}, {cmd:github()}, {cmd:data()}) stores these
+results, so the guard below works after any of them. A failed {cmd:github()}
+install or data file adds to {cmd:r(nfail)}; the command itself still returns 0.
 
 {pstd}So a do-file can stop rather than fail obscurely later:
 

@@ -1,6 +1,14 @@
 *!  usepackage.ado -- find, verify, and install the user-written packages (and data) a do-file needs
 *!  Eric A. Booth, Sr Researcher, Texas 2036 <eric.a.booth@gmail.com>
-*!  v 2.0.0   25jul2026
+*!  v 2.0.1   9nov2026
+*!
+*!  v2.0.1 changes:
+*!    - github() and data() routes now post r() like the package route
+*!      (they used to exit with r() empty, so -if r(nfail) > 0- fired even
+*!      after a successful github() install); r(nfail) counts failed data files
+*!    - data() creates into(), including nested folders, before fetching
+*!      (it used to fail every file with rc 603 when the folder was missing);
+*!      a leading ~ in into() is expanded
 *!
 *!  v2.0.0 changes vs v1.0.0 (2011):
 *!    - never installs a near-match without asking (see noconfirm)
@@ -43,10 +51,26 @@ program define usepackage, rclass
     *-- so your own repositories are searched without naming them every time.
     if `"`ghowner'"' == "" local ghowner `"$usepackage_github"'
 
+    *-- counters: every route (packages, github(), data()) posts the same r()
+    local nreq   0
+    local nok    0
+    local nskip  0
+    local ndefer 0
+    local nfail  0
+    local faillist ""
+    local deferlist ""
+    local ndreq  0
+    local ndok   0
+    local ndfail 0
+    local dgot   ""
+    local dfail  ""
+    local didpkg 0
+    local scanmiss ""
+
     *-- route: scan a do-file and report unresolved commands ------------------
     if `"`scan'"' != "" {
         _up_scan `"`scan'"'
-        if "`pkgs'" == "" & `"`data'"' == "" & `"`github'"' == "" exit 0
+        local scanmiss `"`r(missing)'"'
     }
 
     *-- route: fetch data files from a GitHub repository ----------------------
@@ -57,7 +81,11 @@ program define usepackage, rclass
             into(`"`into'"')                 ///
             branch(`"`branch'"')             ///
             `dryrun' `noconfirm' `useit'
-        if "`pkgs'" == "" & `"`github'"' == "" exit 0
+        local ndreq  = r(nreq)
+        local ndok   = r(nok)
+        local ndfail = r(nfail)
+        local dgot   `"`r(files)'"'
+        local dfail  `"`r(failed)'"'
     }
 
     *-- route: install one package from a GitHub repository -------------------
@@ -66,18 +94,75 @@ program define usepackage, rclass
         *-- there" rather than "install this"
         if "`pkgs'" == "" | "`pkgs'" == "*" | "`pkgs'" == "all" {
             _up_ghlist, target(`"`github'"') branch(`"`branch'"')
-            exit 0
         }
-        foreach p in `pkgs' {
-            _up_github `p',                  ///
-                repo(`"`github'"')           ///
-                branch(`"`branch'"')         ///
-                `update' `noancillary' `dryrun'
+        else {
+            local didpkg 1
+            foreach p in `pkgs' {
+                local ++nreq
+                _up_github `p',                  ///
+                    repo(`"`github'"')           ///
+                    branch(`"`branch'"')         ///
+                    `update' `noancillary' `dryrun'
+                if r(ok) == 1 {
+                    local ++nok
+                }
+                else {
+                    local ++nfail
+                    local faillist "`faillist' `p'"
+                }
+            }
         }
-        exit 0
+    }
+    else if "`pkgs'" != "" {
+        local didpkg 1
+        _up_main `pkgs', `update' `nearest' `noconfirm' `noancillary' ///
+            `dryrun' from(`"`from'"') ghowner(`"`ghowner'"')
+        local nreq   = r(nreq)
+        local nok    = r(nok)
+        local nskip  = r(nskip)
+        local ndefer = r(ndefer)
+        local nfail  = r(nfail)
+        local faillist  `"`r(unresolved)'"'
+        local deferlist `"`r(deferred)'"'
     }
 
-    if "`pkgs'" == "" exit 0
+    if `didpkg' & `"`github'"' != "" {
+        local verb "installed"
+        if "`dryrun'" != "" local verb "resolvable"
+        di as text _n "{hline 60}"
+        di as text "usepackage summary: " as result "`nreq' requested" as text ", " ///
+            as result "`nok' `verb'" as text ", " ///
+            as result "`nfail' unresolved"
+        if "`faillist'" != "" di as error "  unresolved:`faillist'"
+        di as text "{hline 60}"
+    }
+
+    *-- r(nfail) counts unresolved packages AND data files that failed, so the
+    *-- documented guard -if r(nfail) > 0- catches either kind of failure
+    local nfailall = `nfail' + `ndfail'
+
+    if `"`scan'"' != "" return local missing `"`scanmiss'"'
+    return local datafiles  `"`dgot'"'
+    return local datafailed `"`dfail'"'
+    return local deferred   `"`deferlist'"'
+    return local unresolved `"`faillist'"'
+    return scalar ndfail = `ndfail'
+    return scalar ndok   = `ndok'
+    return scalar ndreq  = `ndreq'
+    return scalar nfail  = `nfailall'
+    return scalar nok    = `nok'
+    return scalar nskip  = `nskip'
+    return scalar ndefer = `ndefer'
+    return scalar nreq   = `nreq'
+end
+
+
+*==========================================================================
+*  _up_main : the SSC / net-search / owner-fallback loop over package names
+*==========================================================================
+program define _up_main, rclass
+    syntax anything(name=pkgs) [, Update NEARest NOCONFirm NOANCillary ///
+        DRYrun from(string) ghowner(string) ]
 
     *-- main loop over requested packages ------------------------------------
     local nreq   0
@@ -1128,7 +1213,20 @@ program define _up_data, rclass
     syntax [anything], repo(string) [ files(string) into(string) ///
         branch(string) DRYrun NOCONFirm USEit ]
 
-    if "`into'" == "" local into "."
+    if `"`into'"' == "" local into "."
+    *-- expand a leading ~ ourselves; Stata's file commands do not
+    _up_tilde `"`into'"'
+    local into `"`r(path)'"'
+    if substr(`"`into'"', -1, 1) == "/" & length(`"`into'"') > 1 {
+        local into = substr(`"`into'"', 1, length(`"`into'"') - 1)
+    }
+
+    *-- counts posted back to usepackage (and from there to the user)
+    return scalar nreq  = 0
+    return scalar nok   = 0
+    return scalar nfail = 0
+    return local  files  ""
+    return local  failed ""
 
     local r `"`repo'"'
     if strpos(`"`r'"', "#") {
@@ -1172,10 +1270,18 @@ program define _up_data, rclass
 
     local raw "https://raw.githubusercontent.com/`r'/`usebr'"
 
+    *-- create into() (nested folders too) before any copy lands there
+    if "`dryrun'" == "" {
+        _up_mkdirp `"`into'"'
+    }
+
     *-- explicit file list: just fetch it
     if `"`files'"' != "" {
         local got ""
+        local bad ""
+        local nf 0
         foreach f of local files {
+            local ++nf
             local stub = substr("`f'", strrpos("`f'", "/") + 1, .)
             if "`dryrun'" != "" {
                 di as text `"      would fetch `f' -> `into'/`stub'"'
@@ -1195,13 +1301,24 @@ program define _up_data, rclass
             }
             else if r(lfs) {
                 di as error "      `f' is a Git LFS pointer and the media endpoint failed"
+                local bad "`bad' `f'"
             }
             else {
                 di as error "      could not fetch `f' (rc = " r(rc) ")"
+                local bad "`bad' `f'"
             }
         }
+        local ngot : word count `got'
+        local nbad : word count `bad'
+        if `nbad' > 0 & "`dryrun'" == "" {
+            di as error "      `nbad' of `nf' file(s) not fetched; see r(datafailed)"
+        }
         _up_useit `"`got'"' `"`into'"' "`useit'"
-        return local files `"`got'"'
+        return scalar nreq  = `nf'
+        return scalar nok   = cond("`dryrun'" != "", `nf', `ngot')
+        return scalar nfail = `nbad'
+        return local  files  `"`got'"'
+        return local  failed `"`bad'"'
         exit 0
     }
 
@@ -1287,6 +1404,7 @@ program define _up_data, rclass
     }
 
     local got ""
+    local bad ""
     local nlfs 0
     foreach p of local cand {
         local stub = substr("`p'", strrpos("`p'", "/") + 1, .)
@@ -1305,9 +1423,11 @@ program define _up_data, rclass
         }
         else if r(lfs) {
             di as error "      `p' is a Git LFS pointer and the media endpoint failed"
+            local bad "`bad' `p'"
         }
         else {
             di as error "      could not fetch `p' (rc = " r(rc) ")"
+            local bad "`bad' `p'"
         }
     }
     if `nlfs' > 0 {
@@ -1315,7 +1435,73 @@ program define _up_data, rclass
     }
 
     _up_useit `"`got'"' `"`into'"' "`useit'"
-    return local files `"`got'"'
+    local ngot : word count `got'
+    local nbad : word count `bad'
+    return scalar nreq  = `n'
+    return scalar nok   = `ngot'
+    return scalar nfail = `nbad'
+    return local  files  `"`got'"'
+    return local  failed `"`bad'"'
+end
+
+
+*==========================================================================
+*  _up_tilde : expand a leading ~ from HOME (Windows: USERPROFILE, then
+*  HOMEDRIVE+HOMEPATH, then HOME)
+*==========================================================================
+program define _up_tilde, rclass
+    args path
+    if substr(`"`path'"', 1, 1) == "~" & inlist(substr(`"`path'"', 2, 1), "", "/", "\\") {
+        local home : env HOME
+        if "`c(os)'" == "Windows" {
+            local up : env USERPROFILE
+            local hd : env HOMEDRIVE
+            local hp : env HOMEPATH
+            if `"`up'"' != "" local home `"`up'"'
+            else if `"`hd'`hp'"' != "" local home `"`hd'`hp'"'
+        }
+        if `"`home'"' == "" {
+            di as error "usepackage: cannot expand ~ (HOME is not set)"
+            exit 601
+        }
+        local rest = substr(`"`path'"', 2, .)
+        local path `"`home'`rest'"'
+    }
+    return local path `"`path'"'
+end
+
+
+*==========================================================================
+*  _up_mkdirp : create a folder and any missing parents (Mata, no shell)
+*==========================================================================
+program define _up_mkdirp
+    args dir
+    mata: _up_mkdirp_m(st_local("dir"))
+end
+
+mata:
+void _up_mkdirp_m(string scalar dir)
+{
+    string scalar d, built, sep
+    string rowvector parts
+    real scalar i
+
+    d = subinstr(dir, "\\", "/")
+    if (d == "" | direxists(d)) return
+    parts = tokens(d, "/")
+    built = ""
+    for (i = 1; i <= cols(parts); i++) {
+        sep = parts[i]
+        built = built + sep
+        if (sep != "/" & built != "." & built != ".." & !(strlen(built) == 2 & substr(built, 2, 1) == ":")) {
+            if (!direxists(built)) mkdir(built)
+        }
+    }
+    if (!direxists(d)) {
+        errprintf("usepackage: could not create folder %s\n", dir)
+        exit(603)
+    }
+}
 end
 
 
