@@ -90,7 +90,7 @@ program define usepackage, rclass
 
     *-- Owners to fall back on when a name is on neither SSC nor the net search
     *-- catalogue.  Set once per session (or in profile.do) with e.g.
-    *--     global usepackage_github "ericabooth texas-2036"
+    *--     global usepackage_github "ericabooth yourorg"
     *-- so your own repositories are searched without naming them every time.
     if `"`ghowner'"' == "" local ghowner `"$usepackage_github"'
 

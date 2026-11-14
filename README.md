@@ -174,7 +174,7 @@ usepackage *, github("ericabooth/sparkta2-stata-public")
 Name your accounts once, in `profile.do`:
 
 ```stata
-global usepackage_github "ericabooth texas-2036"
+global usepackage_github "ericabooth yourorg"
 ```
 
 Now anything not on SSC or in the catalogue is looked for there before giving up:

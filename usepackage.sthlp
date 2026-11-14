@@ -279,7 +279,7 @@ counted but not listed. Point it at one repository instead to see just that:
 If you keep packages on GitHub, name the accounts once and stop typing
 {cmd:github()} at all. Put this in {helpb profile.do}:
 
-{p 8 8 2}{cmd:global usepackage_github "ericabooth texas-2036"}{p_end}
+{p 8 8 2}{cmd:global usepackage_github "ericabooth yourorg"}{p_end}
 
 {p 4 4 2}
 and any name that is on neither SSC nor the {cmd:net search} catalogue is looked
@@ -458,7 +458,7 @@ package, {cmd:ssc install} is shorter.
 {phang2}{cmd:. usepackage editanything, github("https://github.com/ericabooth/EditAnything-stata-public/tree/main")}{p_end}
 
 {pstd}{bf:Set your own accounts once, then forget about GitHub}{p_end}
-{phang2}{cmd:. global usepackage_github "ericabooth texas-2036"}    // in profile.do{p_end}
+{phang2}{cmd:. global usepackage_github "ericabooth yourorg"}    // in profile.do{p_end}
 {phang2}{cmd:. usepackage mytool}{p_end}
 {phang2}{it:a name on neither SSC nor the catalogue is looked for in those accounts}{p_end}
 
