@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 2.0.2  9nov2026}{...}
+{* *! version 2.0.3  14nov2026}{...}
 {vieweralsosee "[R] net" "help net"}{...}
 {vieweralsosee "[R] ssc" "help ssc"}{...}
 {vieweralsosee "[R] search" "help search"}{...}
@@ -15,7 +15,7 @@
 {viewerjumpto "Stored results" "usepackage##results"}{...}
 {viewerjumpto "Author" "usepackage##author"}{...}
 {hline}
-help for {hi:usepackage}{right:v 2.0.2}
+help for {hi:usepackage}{right:v 2.0.3}
 {hline}
 
 {title:Title}
@@ -285,10 +285,10 @@ If you keep packages on GitHub, name the accounts once and stop typing
 and any name that is on neither SSC nor the {cmd:net search} catalogue is looked
 for in those accounts, in order, before {cmd:usepackage} gives up:
 
-{p 8 8 2}{cmd:. usepackage editanything}{p_end}
+{p 8 8 2}{cmd:. usepackage mytool}{p_end}
 {p 8 8 2}{cmd:      not found on SSC, and no match in the net search catalogue}{p_end}
 {p 8 8 2}{cmd:      searching repositories owned by ericabooth}{p_end}
-{p 8 8 2}{cmd:      matched ericabooth/EditAnything-stata-public in owner ericabooth}{p_end}
+{p 8 8 2}{cmd:      matched ericabooth/mytool-repo in owner ericabooth}{p_end}
 {p 8 8 2}{cmd:      installed from https://raw.githubusercontent.com/...}{p_end}
 
 {p 4 4 2}
@@ -459,8 +459,8 @@ package, {cmd:ssc install} is shorter.
 
 {pstd}{bf:Set your own accounts once, then forget about GitHub}{p_end}
 {phang2}{cmd:. global usepackage_github "ericabooth texas-2036"}    // in profile.do{p_end}
-{phang2}{cmd:. usepackage editanything}{p_end}
-{phang2}{it:not on SSC or in the catalogue, so those accounts are searched}{p_end}
+{phang2}{cmd:. usepackage mytool}{p_end}
+{phang2}{it:a name on neither SSC nor the catalogue is looked for in those accounts}{p_end}
 
 {pstd}{bf:One list spanning SSC, the Stata Journal, and your own repositories}{p_end}
 {phang2}{cmd:. usepackage fre dropmiss editanything sparkta2, noconfirm}{p_end}

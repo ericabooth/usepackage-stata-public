@@ -1,6 +1,12 @@
 *!  usepackage.ado -- find, verify, and install the user-written packages (and data) a do-file needs
 *!  Eric A. Booth, Sr Researcher, Texas 2036 <eric.a.booth@gmail.com>
-*!  v 2.0.2   9nov2026
+*!  v 2.0.3   14nov2026
+*!
+*!  v2.0.3 changes:
+*!    - net installs (github(), from(), the net search catalogue) no longer
+*!      pass force, which added a duplicate stata.trk entry each time an
+*!      installed package was installed again; after that, ado uninstall
+*!      <pkg> failed with r(111) "criterion matches more than one package"
 *!
 *!  v2.0.2 changes:
 *!    - update no longer uninstalls first: the working copy stays in place
@@ -467,15 +473,17 @@ program define _up_netinstall, rclass
     if "`noancillary'" != "" local all ""
 
     if "`dryrun'" != "" {
-        di as text `"      would run: net install `pkg', from("`from'") `all' replace force"'
+        di as text `"      would run: net install `pkg', from("`from'") `all' replace"'
         return scalar ok = 1
         exit 0
     }
 
-    *-- update does NOT uninstall first: -net install, replace force-
-    *-- overwrites in place, and if the download fails the copy the user
-    *-- already has is still there (v2.0.2)
-    capture qui net install `pkg', from(`"`from'"') `all' replace force
+    *-- update does NOT uninstall first: -net install, replace- overwrites
+    *-- in place, and if the download fails the copy the user already has
+    *-- is still there (v2.0.2).  No -force- (v2.0.3): it re-installs files
+    *-- that are already up to date and adds a duplicate stata.trk entry
+    *-- every time, after which -ado uninstall pkg- fails with r(111)
+    capture qui net install `pkg', from(`"`from'"') `all' replace
     if _rc == 0 {
         di as text "      installed from " as result `"`from'"'
         _up_report_anc `pkg', from(`"`from'"') `noancillary'
@@ -598,13 +606,13 @@ program define _up_try, rclass
     }
 
     if "`dryrun'" != "" {
-        di as text `"      would run: net install `cand', from("`candfm'") `all' replace force"'
+        di as text `"      would run: net install `cand', from("`candfm'") `all' replace"'
         return scalar ok = 1
         exit 0
     }
 
     *-- no uninstall first (see _up_netinstall): replace overwrites
-    capture qui net install `cand', from(`"`candfm'"') `all' replace force
+    capture qui net install `cand', from(`"`candfm'"') `all' replace
     if _rc == 0 {
         if `exact' {
             di as text "      installed " as result "`cand'" as text " from `candfm'"

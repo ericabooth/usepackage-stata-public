@@ -22,7 +22,7 @@ Named for, and inspired by, LaTeX's `\usepackage`.
 ## Install
 
 ```stata
-net install usepackage, from("https://raw.githubusercontent.com/ericabooth/usepackage-stata-public/main/") replace force
+net install usepackage, from("https://raw.githubusercontent.com/ericabooth/usepackage-stata-public/main/") replace
 discard
 which usepackage
 help usepackage
@@ -180,10 +180,10 @@ global usepackage_github "ericabooth texas-2036"
 Now anything not on SSC or in the catalogue is looked for there before giving up:
 
 ```stata
-. usepackage editanything
+. usepackage mytool
       not found on SSC, and no match in the net search catalogue
       searching repositories owned by ericabooth
-      matched ericabooth/EditAnything-stata-public in owner ericabooth
+      matched ericabooth/mytool-repo in owner ericabooth
       installed from https://raw.githubusercontent.com/...
 ```
 
@@ -351,6 +351,12 @@ unauthenticated — whereas `usepackage`'s package installs use only
 
 ## Changelog
 
+- **2.0.3 (14 Nov 2026):** installs from `github()`, `from()`, and the net search
+  catalogue no longer use `force`. With it, installing a package that was
+  already installed added a second entry to `stata.trk` every time, and
+  `ado uninstall` then refused with r(111). The help's owner-search example now
+  uses a placeholder name (editanything is on SSC now, so it never reached the
+  owner search).
 - **2.0.2 (9 Nov 2026):** `update` no longer uninstalls before reinstalling, so a
   failed reinstall (network down, source moved) leaves the working copy in place;
   before, the command was gone. `useit` stops with error 4 when the data in

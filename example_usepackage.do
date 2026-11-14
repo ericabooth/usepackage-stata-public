@@ -1,4 +1,4 @@
-*! example_usepackage.do -- a tour of usepackage 2.0.2
+*! example_usepackage.do -- a tour of usepackage 2.0.3
 *! Eric A. Booth, Sr Researcher, Texas 2036 <eric.a.booth@gmail.com>
 *!
 *! Run this from a scratch directory: several steps drop ancillary files and
